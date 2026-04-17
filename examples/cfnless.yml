@@ -1,0 +1,82 @@
+# cfnless example — multiple functions in one service
+#
+# Note: You can name this configuration file either `cfnless.yml` or `serverless.yml`.
+#
+# A single service can mix container image functions, handler (zip) functions,
+# and pre-built artifact functions. All functions are deployed in parallel.
+#
+# Function names are: {service}-{stage}-{functionKey}
+# e.g. my-app-dev-server, my-app-dev-worker
+
+service: my-app
+
+provider:
+  name: aws
+  region: us-east-1
+  runtime: nodejs20.x
+  logRetentionInDays: 30
+  deploymentBucket:
+    name: my-deployment-bucket
+
+# Optional: control esbuild behavior for handler (zip) functions.
+# All fields are optional — omit the block entirely to use defaults.
+custom:
+  esbuild:
+    minify: true                   # minify the output bundle (default: false)
+    sourcemap: inline              # true | false | 'inline' | 'external' | 'linked' | 'both' (default: false)
+    exclude:                       # packages to exclude from the bundle (matches serverless-esbuild)
+      - sharp                      # passed to esbuild as `external`
+    tsconfig: tsconfig.json        # path to tsconfig (relative to project root; default: auto-detected)
+
+functions:
+
+  # Container image function — application server
+  server:
+    image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:v1.2.3
+    role: arn:aws:iam::123456789012:role/my-lambda-role
+    timeout: 30
+    memorySize: 3008
+    url:
+      invokeMode: RESPONSE_STREAM   # omit authorizer for a public function URL
+    tags:
+      Environment: production
+      DeploymentUid: dep-abc123
+
+  # Handler (zip) function — TypeScript or JavaScript background worker.
+  # `handler` is <file>.<export> — cfnless resolves <file>.ts first, then <file>.js.
+  # Any export name works: worker.handler, users.create, jobs.processQueue, etc.
+  worker:
+    handler: worker.handler
+    role: arn:aws:iam::123456789012:role/my-lambda-role
+    timeout: 30
+    memorySize: 512
+    url: true
+    # Per-function env vars — merged with .env file; these values take precedence.
+    environment:
+      LOG_LEVEL: info
+    tags:
+      Environment: production
+      DeploymentUid: dep-abc123
+
+  # Handler function with a non-default export name and a pinned runtime.
+  # function-level runtime overrides provider.runtime for both the Lambda runtime
+  # and the esbuild compile target.
+  users:
+    handler: src/users.create        # resolves to src/users.ts (or src/users.js)
+    role: arn:aws:iam::123456789012:role/my-lambda-role
+    runtime: nodejs18.x              # overrides provider.runtime for this function only
+    timeout: 10
+    memorySize: 256
+    environment:
+      TABLE_NAME: users-prod
+
+  # Pre-built artifact function — skip esbuild entirely and upload an existing zip.
+  # Use this when you manage your own build pipeline (e.g. webpack, tsc + zip).
+  # `package.artifact` matches the Serverless Framework schema exactly.
+  # A bare `artifact:` field works too and is equivalent (cfnless shorthand).
+  mailer:
+    package:
+      artifact: dist/mailer.zip      # path relative to project root
+    role: arn:aws:iam::123456789012:role/my-lambda-role
+    timeout: 60
+    memorySize: 256

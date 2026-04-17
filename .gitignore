@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.*
+cfnless.yml
+serverless.yml
+.npmrc
+.cfnless/*
+.serverless/*
+.build/
+scripts/local-build.sh
