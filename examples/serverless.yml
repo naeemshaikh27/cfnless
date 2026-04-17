@@ -1,0 +1,44 @@
+# cfnless example — multiple functions in one service
+#
+# Note: You can name this configuration file either `cfnless.yml` or `serverless.yml`.
+#
+# A single service can mix container image functions and handler (zip) functions.
+# All functions are deployed in parallel.
+#
+# Function names are: {service}-{stage}-{functionKey}
+# e.g. my-app-dev-server, my-app-dev-worker
+
+service: my-app
+
+provider:
+  name: aws
+  region: us-east-1
+  runtime: nodejs20.x
+  logRetentionInDays: 30
+  deploymentBucket:
+    name: my-deployment-bucket
+
+functions:
+
+  # Container image function — application server
+  server:
+    image: 123456789012.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:v1.2.3
+    role: arn:aws:iam::123456789012:role/my-lambda-role
+    timeout: 30
+    memorySize: 3008
+    url:
+      invokeMode: RESPONSE_STREAM   # omit authorizer for a public function URL
+    tags:
+      Environment: production
+      DeploymentUid: dep-abc123
+
+  # Handler (zip) function — TypeScript background worker
+  worker:
+    handler: worker.handler          # resolves to worker.ts in the project root
+    role: arn:aws:iam::123456789012:role/my-lambda-role
+    timeout: 30
+    memorySize: 512
+    url: true
+    tags:
+      Environment: production
+      DeploymentUid: dep-abc123

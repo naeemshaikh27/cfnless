@@ -1,0 +1,54 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "lambda:CreateFunction",
+        "lambda:UpdateFunctionCode",
+        "lambda:UpdateFunctionConfiguration",
+        "lambda:GetFunction",
+        "lambda:DeleteFunction",
+        "lambda:TagResource",
+        "lambda:GetFunctionUrlConfig",
+        "lambda:CreateFunctionUrlConfig",
+        "lambda:UpdateFunctionUrlConfig",
+        "lambda:AddPermission"
+      ],
+      "Resource": "arn:aws:lambda:<region>:<account-id>:function:*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "logs:CreateLogGroup",
+        "logs:PutRetentionPolicy",
+        "logs:DeleteLogGroup",
+        "logs:DescribeLogGroups"
+      ],
+      "Resource": "arn:aws:logs:<region>:<account-id>:log-group:/aws/lambda/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::<deployment-bucket>/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["s3:ListBucket"],
+      "Resource": "arn:aws:s3:::<deployment-bucket>"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["tag:GetResources"],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:DescribeStacks",
+        "cloudformation:DeleteStack"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
