@@ -5,8 +5,8 @@ on:
     tags: ['v*']
 
 jobs:
-  test:
-    name: Tests
+  unit-tests:
+    name: Unit tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -23,9 +23,55 @@ jobs:
       - run: npm run build
       - run: npm test
 
+  integration-tests:
+    name: Integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - name: Start LocalStack and Minio
+        run: npm run docker:up
+      - name: Run integration tests
+        run: npm run test:integration:run
+      - name: Stop LocalStack and Minio
+        if: always()
+        run: npm run docker:down
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+
   release:
     name: Publish to npm and create GitHub Release
-    needs: test
+    needs: [unit-tests, integration-tests, codeql]
     runs-on: ubuntu-latest
     permissions:
       contents: write  # needed to create GitHub Release
