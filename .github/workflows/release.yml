@@ -5,12 +5,31 @@ on:
     tags: ['v*']
 
 jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+
   release:
     name: Publish to npm and create GitHub Release
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write  # needed to create GitHub Release
-      id-token: write  # needed for npm OIDC trusted publishing
+      id-token: write  # needed for npm provenance
     steps:
       - uses: actions/checkout@v4
 
@@ -22,7 +41,6 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-      - run: npm test
 
       - name: Publish to npm
         run: npm publish --access public --provenance
