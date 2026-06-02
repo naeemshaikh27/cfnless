@@ -59,6 +59,18 @@ export async function bundleAndZip(
       absWorkingDir: workdir,
       logLevel: 'warning',
       sourcemap: sourcemap ?? false,
+      // Polyfill ESM-only `import.meta.*` for the CJS output Lambda expects.
+      // Without this, `createRequire(import.meta.url)` and similar idioms
+      // throw at module init (import.meta is undefined in CJS). Matches
+      // webpack's behaviour under serverless-bundle. esbuild's `define` only
+      // accepts identifiers or literals, so the URL is computed once in a
+      // banner and referenced by name.
+      banner: { js: `const __cfnlessImportMetaUrl = require('url').pathToFileURL(__filename).href;` },
+      define: {
+        'import.meta.url': '__cfnlessImportMetaUrl',
+        'import.meta.filename': '__filename',
+        'import.meta.dirname': '__dirname',
+      },
       ...(minify !== undefined && { minify }),
       ...(tsconfig !== undefined && { tsconfig }),
       ...(mergedExternal.length > 0 && { external: mergedExternal }),

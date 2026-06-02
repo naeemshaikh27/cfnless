@@ -112,6 +112,73 @@ describe('bundler integration (real esbuild + archiver)', () => {
     expect(bundledJs).toContain('//# sourceMappingURL=data:application/json');
   });
 
+  // ── import.meta polyfill ─────────────────────────────────────────────
+  // These three tests load the produced bundle and assert that ESM-only
+  // `import.meta.*` references survive the CJS-output bundling and resolve
+  // to webpack-equivalent runtime values. Without the polyfill in bundler.ts,
+  // accessing `import.meta` in CJS throws ReferenceError at module load.
+
+  it('polyfills import.meta.url to the bundle file URL (createRequire works)', async () => {
+    fs.writeFileSync(
+      path.join(workdir, 'handler.ts'),
+      `import { createRequire } from 'module';
+       const requireFn = createRequire(import.meta.url);
+       const pathMod = requireFn('path');
+       export const handler = async () => ({ joined: pathMod.join('a', 'b'), metaUrl: import.meta.url });`
+    );
+
+    await bundleAndZip('handler', workdir, 'node20', 'svc-dev-meta-url');
+
+    const bundlePath = path.join(workdir, '.cfnless', 'svc-dev-meta-url.js');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require(bundlePath);
+    const result = await mod.handler();
+
+    expect(result.joined).toBe(path.join('a', 'b'));
+    expect(result.metaUrl).toMatch(/^file:\/\/.+svc-dev-meta-url\.js$/);
+  });
+
+  it('polyfills import.meta.filename and import.meta.dirname (Node 20.11+ idiom)', async () => {
+    fs.writeFileSync(
+      path.join(workdir, 'handler.ts'),
+      `export const handler = async () => ({
+         filename: import.meta.filename,
+         dirname: import.meta.dirname,
+       });`
+    );
+
+    await bundleAndZip('handler', workdir, 'node20', 'svc-dev-meta-paths');
+
+    const bundlePath = path.join(workdir, '.cfnless', 'svc-dev-meta-paths.js');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require(bundlePath);
+    const result = await mod.handler();
+
+    // realpath normalises macOS's /tmp → /private/tmp symlink
+    expect(fs.realpathSync(result.filename)).toBe(fs.realpathSync(bundlePath));
+    expect(fs.realpathSync(result.dirname)).toBe(fs.realpathSync(path.dirname(bundlePath)));
+  });
+
+  it('supports `new URL(asset, import.meta.url)` for asset path resolution', async () => {
+    fs.writeFileSync(
+      path.join(workdir, 'handler.ts'),
+      `export const handler = async () => {
+         const u = new URL('./assets/foo.json', import.meta.url);
+         return { href: u.href, pathname: u.pathname };
+       };`
+    );
+
+    await bundleAndZip('handler', workdir, 'node20', 'svc-dev-meta-url-ctor');
+
+    const bundlePath = path.join(workdir, '.cfnless', 'svc-dev-meta-url-ctor.js');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require(bundlePath);
+    const result = await mod.handler();
+
+    expect(result.href).toMatch(/^file:\/\/.+\.cfnless\/assets\/foo\.json$/);
+    expect(result.pathname).toMatch(/\.cfnless\/assets\/foo\.json$/);
+  });
+
   it('throws when the handler .ts file does not exist', async () => {
     await expect(
       bundleAndZip('nonexistent', workdir, 'node20', 'svc-dev-missing')

@@ -61,6 +61,14 @@ describe('bundler', () => {
         absWorkingDir: '/workspace',
         outfile: '/workspace/.cfnless/svc-dev-myfunc.js',
         sourcemap: false,
+        // import.meta polyfill — required so createRequire(import.meta.url) and
+        // similar idioms work in CJS output (parity with webpack).
+        banner: { js: expect.stringContaining('pathToFileURL(__filename)') },
+        define: expect.objectContaining({
+          'import.meta.url': '__cfnlessImportMetaUrl',
+          'import.meta.filename': '__filename',
+          'import.meta.dirname': '__dirname',
+        }),
       })
     );
     expect(result.zipFile).toBe('/workspace/.cfnless/svc-dev-myfunc.zip');
