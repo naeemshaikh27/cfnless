@@ -55,7 +55,7 @@
     "@aws-sdk/client-s3": "^3",
     "archiver": "^7",
     "dotenv": "^16",
-    "esbuild": "^0.25",
+    "esbuild": "^0.28",
     "js-yaml": "^4"
   },
   "devDependencies": {
