@@ -120,9 +120,12 @@ Handler functions are bundled with esbuild (TypeScript and JavaScript supported)
 | `functions.<key>.timeout` | no | `30` | Seconds |
 | `functions.<key>.memorySize` | no | `1024` | MB |
 | `functions.<key>.runtime` | no | `provider.runtime` | Overrides `provider.runtime` for this function. Also controls the esbuild target |
+| `provider.vpc.securityGroupIds` | no | | Default security group IDs for all VPC functions |
+| `provider.vpc.subnetIds` | no | | Default subnet IDs for all VPC functions |
 | `functions.<key>.environment` | no | | Per-function env vars. Merged with `.env` file; function-level values take precedence |
 | `functions.<key>.url` | no | | `true`, or `{ authorizer?, invokeMode? }`. `authorizer: aws_iam` enables IAM auth; omit for public (NONE). `invokeMode: RESPONSE_STREAM` enables streaming; omit for `BUFFERED`. |
 | `functions.<key>.tags` | no | | Merged with `ServerlessService` tag |
+| `functions.<key>.vpc` | no | `provider.vpc` | `{ securityGroupIds, subnetIds }` to place the function in a VPC, `null` or `false` to opt a function out of the provider-level VPC |
 
 ### Esbuild options
 
@@ -161,9 +164,32 @@ The `cloudformation:*` actions are only needed when running `cfnless remove --re
 | `AWS_PROFILE` | AWS credentials profile to use (passed through to the SDK) |
 | `AWS_REGION` | Override region (the SDK resolves this automatically from credentials or `serverless.yml`) |
 
+## VPC
+
+Functions can be placed inside a VPC by specifying `securityGroupIds` and `subnetIds`. VPC config can be set at the provider level (applies to all functions) or overridden per function. To opt a specific function out of the provider-level VPC, set `vpc: null` (or `vpc: false`) on that function.
+
+```yaml
+provider:
+  vpc:
+    securityGroupIds:
+      - sg-0123456789abcdef0
+    subnetIds:
+      - subnet-0123456789abcdef0
+
+functions:
+  private-worker:
+    handler: worker.handler
+    # inherits provider.vpc
+
+  public-api:
+    handler: api.handler
+    vpc: null   # opt out — not placed in a VPC
+```
+
+> **Note:** The Lambda **execution role** (not the cfnless deployer) must have `ec2:CreateNetworkInterface`, `ec2:DescribeNetworkInterfaces`, and `ec2:DeleteNetworkInterface` permissions so Lambda can manage the ENIs in your VPC.
+
 ## Known limitations
 
-- **No VPC support** — functions cannot be placed inside a VPC.
 - **No custom domains** — no API Gateway or CloudFront integration.
 - **No Lambda@Edge** — only standard regional Lambda functions.
 - **No plugin ecosystem** — Serverless Framework plugins are not supported or loaded.

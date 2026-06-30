@@ -119,6 +119,83 @@ describe('LambdaManager', () => {
       expect(commandTypes).not.toContain('AddPermissionCommand');
     });
 
+    it('includes VpcConfig in CreateFunctionCommand when vpcConfig is provided', async () => {
+      mockSend
+        .mockRejectedValueOnce(makeNotFound())
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ Configuration: { FunctionArn: FUNCTION_ARN } })
+        .mockResolvedValueOnce({});
+
+      await manager.createOrUpdateContainerFunction(FUNCTION_NAME, {
+        ...BASE_CONFIG,
+        urlConfig: null,
+        vpcConfig: { securityGroupIds: ['sg-abc123'], subnetIds: ['subnet-abc', 'subnet-def'] },
+      });
+
+      const createInput = jest.mocked(CreateFunctionCommand).mock.calls[0][0];
+      expect(createInput.VpcConfig).toEqual({
+        SecurityGroupIds: ['sg-abc123'],
+        SubnetIds: ['subnet-abc', 'subnet-def'],
+      });
+    });
+
+    it('does not include VpcConfig in CreateFunctionCommand when vpcConfig is undefined', async () => {
+      mockSend
+        .mockRejectedValueOnce(makeNotFound())
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ Configuration: { FunctionArn: FUNCTION_ARN } })
+        .mockResolvedValueOnce({});
+
+      await manager.createOrUpdateContainerFunction(FUNCTION_NAME, {
+        ...BASE_CONFIG,
+        urlConfig: null,
+        vpcConfig: undefined,
+      });
+
+      const createInput = jest.mocked(CreateFunctionCommand).mock.calls[0][0];
+      expect(createInput.VpcConfig).toBeUndefined();
+    });
+
+    it('includes VpcConfig in UpdateFunctionConfigurationCommand when vpcConfig is provided', async () => {
+      mockSend
+        .mockResolvedValueOnce({ Configuration: { FunctionArn: FUNCTION_ARN } })
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ Configuration: { FunctionArn: FUNCTION_ARN } })
+        .mockResolvedValueOnce({});
+
+      await manager.createOrUpdateContainerFunction(FUNCTION_NAME, {
+        ...BASE_CONFIG,
+        urlConfig: null,
+        vpcConfig: { securityGroupIds: ['sg-abc123'], subnetIds: ['subnet-abc'] },
+      });
+
+      expect(mockSend.mock.calls[2][0]).toBeInstanceOf(UpdateFunctionConfigurationCommand);
+      const updateInput = jest.mocked(UpdateFunctionConfigurationCommand).mock.calls[0][0];
+      expect(updateInput.VpcConfig).toEqual({
+        SecurityGroupIds: ['sg-abc123'],
+        SubnetIds: ['subnet-abc'],
+      });
+    });
+
+    it('passes empty arrays to UpdateFunctionConfigurationCommand when vpcConfig is null (removes from VPC)', async () => {
+      mockSend
+        .mockResolvedValueOnce({ Configuration: { FunctionArn: FUNCTION_ARN } })
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ Configuration: { FunctionArn: FUNCTION_ARN } })
+        .mockResolvedValueOnce({});
+
+      await manager.createOrUpdateContainerFunction(FUNCTION_NAME, {
+        ...BASE_CONFIG,
+        urlConfig: null,
+        vpcConfig: null,
+      });
+
+      const updateInput = jest.mocked(UpdateFunctionConfigurationCommand).mock.calls[0][0];
+      expect(updateInput.VpcConfig).toEqual({ SecurityGroupIds: [], SubnetIds: [] });
+    });
+
     it('sets RESPONSE_STREAM invoke mode when configured', async () => {
       mockSend
         .mockRejectedValueOnce(makeNotFound())
@@ -226,6 +303,44 @@ describe('LambdaManager', () => {
       expect(updateCodeInput.S3Key).toBe('service/zips/fn.zip');
 
       expect(mockSend.mock.calls[2][0]).toBeInstanceOf(UpdateFunctionConfigurationCommand);
+    });
+
+    it('includes VpcConfig in CreateFunctionCommand for zip function when vpcConfig is provided', async () => {
+      mockSend
+        .mockRejectedValueOnce(makeNotFound())
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ Configuration: { FunctionArn: FUNCTION_ARN } })
+        .mockResolvedValueOnce({});
+
+      await manager.createOrUpdateZipFunction(FUNCTION_NAME, {
+        ...ZIP_CONFIG,
+        urlConfig: null,
+        vpcConfig: { securityGroupIds: ['sg-abc123'], subnetIds: ['subnet-abc'] },
+      });
+
+      const createInput = jest.mocked(CreateFunctionCommand).mock.calls[0][0];
+      expect(createInput.VpcConfig).toEqual({
+        SecurityGroupIds: ['sg-abc123'],
+        SubnetIds: ['subnet-abc'],
+      });
+    });
+
+    it('passes empty arrays in UpdateFunctionConfigurationCommand for zip function when vpcConfig is null', async () => {
+      mockSend
+        .mockResolvedValueOnce({ Configuration: { FunctionArn: FUNCTION_ARN } })
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({})
+        .mockResolvedValueOnce({ Configuration: { FunctionArn: FUNCTION_ARN } })
+        .mockResolvedValueOnce({});
+
+      await manager.createOrUpdateZipFunction(FUNCTION_NAME, {
+        ...ZIP_CONFIG,
+        urlConfig: null,
+        vpcConfig: null,
+      });
+
+      const updateInput = jest.mocked(UpdateFunctionConfigurationCommand).mock.calls[0][0];
+      expect(updateInput.VpcConfig).toEqual({ SecurityGroupIds: [], SubnetIds: [] });
     });
   });
 

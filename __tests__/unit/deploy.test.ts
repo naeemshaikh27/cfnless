@@ -410,6 +410,109 @@ describe('deploy', () => {
     );
   });
 
+  it('passes provider-level VPC to lambda manager when function has no vpc field', async () => {
+    jest.mocked(loadConfig).mockReturnValue({
+      ...BASE_CONFIG,
+      provider: {
+        ...BASE_CONFIG.provider,
+        vpc: { securityGroupIds: ['sg-provider'], subnetIds: ['subnet-provider'] },
+      },
+      functions: {
+        api: { image: 'img:tag', role: 'r', timeout: 30, memorySize: 1024, tags: {} },
+      },
+    });
+
+    await deploy(WORKDIR);
+
+    expect(mockLambda.createOrUpdateContainerFunction).toHaveBeenCalledWith(
+      'cf-abc123-dev-api',
+      expect.objectContaining({
+        vpcConfig: { securityGroupIds: ['sg-provider'], subnetIds: ['subnet-provider'] },
+      })
+    );
+  });
+
+  it('passes function-level VPC to lambda manager, overriding provider-level vpc', async () => {
+    jest.mocked(loadConfig).mockReturnValue({
+      ...BASE_CONFIG,
+      provider: {
+        ...BASE_CONFIG.provider,
+        vpc: { securityGroupIds: ['sg-provider'], subnetIds: ['subnet-provider'] },
+      },
+      functions: {
+        api: {
+          image: 'img:tag', role: 'r', timeout: 30, memorySize: 1024, tags: {},
+          vpc: { securityGroupIds: ['sg-func'], subnetIds: ['subnet-func'] },
+        },
+      },
+    });
+
+    await deploy(WORKDIR);
+
+    expect(mockLambda.createOrUpdateContainerFunction).toHaveBeenCalledWith(
+      'cf-abc123-dev-api',
+      expect.objectContaining({
+        vpcConfig: { securityGroupIds: ['sg-func'], subnetIds: ['subnet-func'] },
+      })
+    );
+  });
+
+  it('passes vpcConfig:null when function has vpc:null, opting out of provider-level vpc', async () => {
+    jest.mocked(loadConfig).mockReturnValue({
+      ...BASE_CONFIG,
+      provider: {
+        ...BASE_CONFIG.provider,
+        vpc: { securityGroupIds: ['sg-provider'], subnetIds: ['subnet-provider'] },
+      },
+      functions: {
+        api: { image: 'img:tag', role: 'r', timeout: 30, memorySize: 1024, tags: {}, vpc: null },
+      },
+    });
+
+    await deploy(WORKDIR);
+
+    expect(mockLambda.createOrUpdateContainerFunction).toHaveBeenCalledWith(
+      'cf-abc123-dev-api',
+      expect.objectContaining({ vpcConfig: null })
+    );
+  });
+
+  it('passes vpcConfig:null when function has vpc:false, opting out of provider-level vpc', async () => {
+    jest.mocked(loadConfig).mockReturnValue({
+      ...BASE_CONFIG,
+      provider: {
+        ...BASE_CONFIG.provider,
+        vpc: { securityGroupIds: ['sg-provider'], subnetIds: ['subnet-provider'] },
+      },
+      functions: {
+        api: { image: 'img:tag', role: 'r', timeout: 30, memorySize: 1024, tags: {}, vpc: false },
+      },
+    });
+
+    await deploy(WORKDIR);
+
+    expect(mockLambda.createOrUpdateContainerFunction).toHaveBeenCalledWith(
+      'cf-abc123-dev-api',
+      expect.objectContaining({ vpcConfig: null })
+    );
+  });
+
+  it('passes vpcConfig:null when neither provider nor function has a vpc config', async () => {
+    jest.mocked(loadConfig).mockReturnValue({
+      ...BASE_CONFIG,
+      functions: {
+        api: { image: 'img:tag', role: 'r', timeout: 30, memorySize: 1024, tags: {} },
+      },
+    });
+
+    await deploy(WORKDIR);
+
+    expect(mockLambda.createOrUpdateContainerFunction).toHaveBeenCalledWith(
+      'cf-abc123-dev-api',
+      expect.objectContaining({ vpcConfig: null })
+    );
+  });
+
   it('passes configPath to resolveConfigPath', async () => {
     jest.mocked(loadConfig).mockReturnValue(BASE_CONFIG);
     jest.mocked(resolveConfigPath).mockReturnValue('/workspace/custom.yml');

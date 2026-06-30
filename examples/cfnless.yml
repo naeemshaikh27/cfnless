@@ -17,6 +17,16 @@ provider:
   logRetentionInDays: 30
   deploymentBucket:
     name: my-deployment-bucket
+  # Optional: place all functions inside a VPC by default.
+  # Individual functions can override or opt out with their own `vpc:` block.
+  # The Lambda execution role must have ec2:CreateNetworkInterface,
+  # ec2:DescribeNetworkInterfaces, and ec2:DeleteNetworkInterface permissions.
+  vpc:
+    securityGroupIds:
+      - sg-0123456789abcdef0
+    subnetIds:
+      - subnet-0123456789abcdef0
+      - subnet-0123456789abcdef1
 
 # Optional: control esbuild behavior for handler (zip) functions.
 # All fields are optional — omit the block entirely to use defaults.
@@ -80,3 +90,16 @@ functions:
     role: arn:aws:iam::123456789012:role/my-lambda-role
     timeout: 60
     memorySize: 256
+
+  # Function with a VPC override — uses different subnets/SGs from the provider default.
+  # Set `vpc: null` (or `vpc: false`) to opt a function out of the provider-level VPC entirely.
+  internal-worker:
+    handler: internal-worker.handler
+    role: arn:aws:iam::123456789012:role/my-lambda-role
+    timeout: 30
+    memorySize: 512
+    vpc:
+      securityGroupIds:
+        - sg-0fedcba9876543210
+      subnetIds:
+        - subnet-0fedcba9876543210

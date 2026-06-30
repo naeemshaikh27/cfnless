@@ -3,6 +3,11 @@ export interface URLConfig {
   invokeMode?: string | null;
 }
 
+export interface VpcConfig {
+  securityGroupIds: string[];
+  subnetIds: string[];
+}
+
 export interface FunctionConfig {
   image?: string;
   handler?: string;
@@ -15,6 +20,7 @@ export interface FunctionConfig {
   environment?: Record<string, string>;
   url?: URLConfig | boolean | Record<string, never>;
   tags?: Record<string, string>;
+  vpc?: VpcConfig | null | false;
 }
 
 export interface EsbuildConfig {
@@ -35,6 +41,7 @@ export interface ProviderConfig {
   deploymentBucket: string | null;
   deploymentPrefix: string;
   logRetentionInDays: number;
+  vpc?: VpcConfig | null;
 }
 
 export interface Config {
@@ -57,6 +64,7 @@ export interface ContainerFunctionParams {
   memorySize: number;
   urlConfig: NormalizedURLConfig | null | undefined;
   tags: Record<string, string>;
+  vpcConfig?: VpcConfig | null;
 }
 
 export interface ZipFunctionParams {
@@ -71,6 +79,7 @@ export interface ZipFunctionParams {
   environment: Record<string, string>;
   urlConfig: NormalizedURLConfig | null | undefined;
   tags: Record<string, string>;
+  vpcConfig?: VpcConfig | null;
 }
 
 export interface BundleResult {

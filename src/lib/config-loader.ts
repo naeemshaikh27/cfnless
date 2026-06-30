@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import yaml from 'js-yaml';
-import type { Config, EsbuildConfig } from '../types';
+import type { Config, EsbuildConfig, VpcConfig } from '../types';
 
 const CONFIG_FILENAMES = ['cfnless.yml', 'serverless.yml', 'cfnless.js', 'serverless.js'];
 
@@ -77,6 +77,15 @@ function normalizeConfig(raw: unknown, configPath: string): Config {
     ...(esbuildObj.external !== undefined && { external: esbuildObj.external as string[] }),
   };
 
+  const vpcObj = provider.vpc as Record<string, unknown> | null | undefined;
+  const vpc: VpcConfig | null =
+    vpcObj && Array.isArray(vpcObj.securityGroupIds) && Array.isArray(vpcObj.subnetIds)
+      ? {
+          securityGroupIds: vpcObj.securityGroupIds as string[],
+          subnetIds: vpcObj.subnetIds as string[],
+        }
+      : null;
+
   return {
     service,
     stage: (provider.stage as string) || 'dev',
@@ -86,6 +95,7 @@ function normalizeConfig(raw: unknown, configPath: string): Config {
       deploymentBucket: deploymentBucketName,
       deploymentPrefix: (provider.deploymentPrefix as string) || 'serverless',
       logRetentionInDays: (provider.logRetentionInDays as number) || 14,
+      vpc,
     },
     functions: functions as Config['functions'],
     ...(Object.keys(esbuild).length > 0 && { custom: { esbuild } }),

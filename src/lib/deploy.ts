@@ -6,7 +6,7 @@ import { LambdaManager } from './lambda-manager';
 import { CloudWatchManager } from './cloudwatch-manager';
 import { S3Uploader } from './s3-uploader';
 import { bundleAndZip } from './bundler';
-import type { FunctionConfig, NormalizedURLConfig, EsbuildConfig } from '../types';
+import type { FunctionConfig, NormalizedURLConfig, EsbuildConfig, VpcConfig } from '../types';
 
 export default async function deploy(
   workdir: string,
@@ -17,7 +17,7 @@ export default async function deploy(
   const config = loadConfig(resolvedConfig);
 
   const { service, stage, provider, functions, custom } = config;
-  const { region, runtime, deploymentBucket, deploymentPrefix, logRetentionInDays } = provider;
+  const { region, runtime, deploymentBucket, deploymentPrefix, logRetentionInDays, vpc: providerVpc = null } = provider;
 
   const filteredFunctions = functionFilter
     ? Object.fromEntries(Object.entries(functions).filter(([k]) => k === functionFilter))
@@ -59,6 +59,7 @@ export default async function deploy(
       logRetentionInDays,
       runtime,
       esbuildOptions: custom?.esbuild,
+      providerVpc,
     });
   });
 
@@ -107,6 +108,7 @@ interface DeployFunctionArgs {
   logRetentionInDays: number;
   runtime: string;
   esbuildOptions: EsbuildConfig | undefined;
+  providerVpc: VpcConfig | null;
 }
 
 async function deployFunction({
@@ -125,10 +127,12 @@ async function deployFunction({
   logRetentionInDays,
   runtime,
   esbuildOptions,
+  providerVpc,
 }: DeployFunctionArgs): Promise<void> {
   const logGroupName = `/aws/lambda/${functionName}`;
   const tags = buildTags(funcConfig.tags ?? {}, service);
   const urlConfig = normalizeUrlConfig(funcConfig.url);
+  const vpcConfig = resolveVpcConfig(funcConfig.vpc, providerVpc);
 
   await cwMgr.createLogGroupIfNotExists(logGroupName, logRetentionInDays);
 
@@ -140,6 +144,7 @@ async function deployFunction({
       memorySize: funcConfig.memorySize ?? 1024,
       urlConfig,
       tags,
+      vpcConfig,
     });
   } else if (funcConfig.package?.artifact || funcConfig.artifact || funcConfig.handler) {
     if (!deploymentBucket) {
@@ -183,6 +188,7 @@ async function deployFunction({
       environment: { ...envVars, ...(funcConfig.environment ?? {}) },
       urlConfig,
       tags,
+      vpcConfig,
     });
   } else {
     throw new Error(`Function "${functionKey}" has neither "image", "handler", nor "artifact"/"package.artifact" defined`);
@@ -213,6 +219,15 @@ function normalizeUrlConfig(
     authorizer: u.authorizer ?? null,
     invokeMode: u.invokeMode ?? null,
   };
+}
+
+function resolveVpcConfig(
+  funcVpc: FunctionConfig['vpc'],
+  providerVpc: VpcConfig | null
+): VpcConfig | null {
+  if (funcVpc === null || funcVpc === false) return null;
+  if (funcVpc) return funcVpc as VpcConfig;
+  return providerVpc;
 }
 
 function runtimeToEsbuildTarget(runtime: string): string {
