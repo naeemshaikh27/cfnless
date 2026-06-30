@@ -14,7 +14,7 @@ import {
   waitUntilFunctionActiveV2,
   type Runtime,
 } from '@aws-sdk/client-lambda';
-import type { ContainerFunctionParams, ZipFunctionParams, NormalizedURLConfig } from '../types';
+import type { ContainerFunctionParams, ZipFunctionParams, NormalizedURLConfig, VpcConfig } from '../types';
 
 const WAIT_TIMEOUT_SECONDS = 300;
 const WAIT_MIN_DELAY = 5;
@@ -48,7 +48,7 @@ export class LambdaManager {
     functionName: string,
     config: ContainerFunctionParams
   ): Promise<void> {
-    const { image, role, timeout, memorySize, urlConfig, tags } = config;
+    const { image, role, timeout, memorySize, urlConfig, tags, vpcConfig } = config;
 
     const existing = await this.getFunction(functionName);
 
@@ -63,6 +63,7 @@ export class LambdaManager {
           Timeout: timeout,
           MemorySize: memorySize,
           Tags: tags,
+          ...(vpcConfig && { VpcConfig: _toAwsVpcConfig(vpcConfig) }),
         })
       );
       await this._waitForActive(functionName);
@@ -82,6 +83,7 @@ export class LambdaManager {
           Role: role,
           Timeout: timeout,
           MemorySize: memorySize,
+          VpcConfig: vpcConfig ? _toAwsVpcConfig(vpcConfig) : { SecurityGroupIds: [], SubnetIds: [] },
         })
       );
       await this._waitForUpdated(functionName);
@@ -95,7 +97,7 @@ export class LambdaManager {
     functionName: string,
     config: ZipFunctionParams
   ): Promise<void> {
-    const { s3Bucket, s3Key, handler, role, timeout, memorySize, runtime, environment, urlConfig, tags } =
+    const { s3Bucket, s3Key, handler, role, timeout, memorySize, runtime, environment, urlConfig, tags, vpcConfig } =
       config;
 
     const existing = await this.getFunction(functionName);
@@ -114,6 +116,7 @@ export class LambdaManager {
           MemorySize: memorySize,
           Environment: { Variables: environment || {} },
           Tags: tags,
+          ...(vpcConfig && { VpcConfig: _toAwsVpcConfig(vpcConfig) }),
         })
       );
       await this._waitForActive(functionName);
@@ -137,6 +140,7 @@ export class LambdaManager {
           Timeout: timeout,
           MemorySize: memorySize,
           Environment: { Variables: environment || {} },
+          VpcConfig: vpcConfig ? _toAwsVpcConfig(vpcConfig) : { SecurityGroupIds: [], SubnetIds: [] },
         })
       );
       await this._waitForUpdated(functionName);
@@ -285,4 +289,11 @@ export class LambdaManager {
       throw new Error(`Lambda function ${functionName} did not finish updating: ${err.message}`);
     }
   }
+}
+
+function _toAwsVpcConfig(vpc: VpcConfig) {
+  return {
+    SecurityGroupIds: vpc.securityGroupIds,
+    SubnetIds: vpc.subnetIds,
+  };
 }
