@@ -1,6 +1,6 @@
 {
   "name": "cfnless",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Drop-in replacement for the Serverless Framework CLI using AWS SDK directly (no CloudFormation)",
   "bin": {
     "cfnless": "./dist/index.js"
