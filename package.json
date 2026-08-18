@@ -68,7 +68,9 @@
     "typescript": "^6.0.2"
   },
   "overrides": {
-    "brace-expansion": "^2.1.4"
+    "brace-expansion": "^2.1.4",
+    "@babel/core": "^7.29.6",
+    "browserslist": "^4.28.7"
   },
   "jest": {
     "preset": "ts-jest",
