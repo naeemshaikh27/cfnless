@@ -67,6 +67,9 @@
     "ts-jest": "^29.4.9",
     "typescript": "^6.0.2"
   },
+  "overrides": {
+    "glob": "^10"
+  },
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
