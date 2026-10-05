@@ -34,10 +34,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Start LocalStack and Minio
+      - name: Start LocalStack
         run: npm run docker:up
       - name: Run integration tests
         run: npm run test:integration:run
-      - name: Stop LocalStack and Minio
+      - name: Stop LocalStack
         if: always()
         run: npm run docker:down

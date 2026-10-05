@@ -5,22 +5,23 @@ import {
   DeleteObjectsCommand,
 } from '@aws-sdk/client-s3';
 import { S3Uploader } from '../../src/lib/s3-uploader';
+import { ensureBucket } from './ensure-bucket';
 
 // Requires: docker compose -f __tests__/integration/docker-compose.yml up -d --wait
 //
-// Tests S3Uploader cleanup methods against real MinIO. Verifies the flat-vs-nested key
+// Tests S3Uploader cleanup methods against LocalStack S3. Verifies the flat-vs-nested key
 // distinction: cfnless owns flat keys (api.zip), Serverless Framework owns nested keys
 // (timestamped subdirectory layout).
 
-const MINIO_ENDPOINT = 'http://localhost:9000';
+const S3_ENDPOINT = 'http://localhost:4566';
 const BUCKET = 'cfnless-test-bucket';
 const REGION = 'us-east-1';
 const PREFIX = 'serverless';
 const STAGE = 'dev';
 
-function makeMinioClient(): S3Client {
+function makeS3Client(): S3Client {
   return new S3Client({
-    endpoint: MINIO_ENDPOINT,
+    endpoint: S3_ENDPOINT,
     region: REGION,
     credentials: { accessKeyId: 'testuser', secretAccessKey: 'testpassword' },
     forcePathStyle: true,
@@ -29,7 +30,7 @@ function makeMinioClient(): S3Client {
 
 function makeUploader(): S3Uploader {
   const uploader = new S3Uploader(REGION);
-  uploader.client = makeMinioClient();
+  uploader.client = makeS3Client();
   return uploader;
 }
 
@@ -51,8 +52,8 @@ async function deleteAll(client: S3Client, keys: string[]): Promise<void> {
   );
 }
 
-describe('S3Uploader cleanup integration (Minio)', () => {
-  const client = makeMinioClient();
+describe('S3Uploader cleanup integration (LocalStack)', () => {
+  const client = makeS3Client();
   // Use a unique service name per test run so parallel runs don't collide
   const SERVICE = `s3cleanup-inttest-${Date.now()}`;
   const keyPrefix = `${PREFIX}/${SERVICE}/${STAGE}/`;
@@ -63,6 +64,10 @@ describe('S3Uploader cleanup integration (Minio)', () => {
   // Nested keys — Serverless Framework timestamped layout (subdirectory after stage prefix)
   const nestedKey1 = `${keyPrefix}2024-01-01T00-00-00/compiled-cloudformation-template.json`;
   const nestedKey2 = `${keyPrefix}2024-01-01T00-00-00/api.zip`;
+
+  beforeAll(async () => {
+    await ensureBucket(client, BUCKET);
+  });
 
   afterAll(async () => {
     const remaining = await listKeysUnderPrefix(client, keyPrefix);
