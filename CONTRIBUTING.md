@@ -21,7 +21,7 @@ All AWS calls are mocked with Jest. No credentials or live AWS services needed.
 
 ### Integration tests (requires Docker)
 
-Integration tests run against [LocalStack](https://localstack.cloud/) (Lambda, CloudWatch Logs, Resource Groups Tagging API) and [Minio](https://min.io/) (S3).
+Integration tests run against [LocalStack](https://localstack.cloud/) (Lambda, CloudWatch Logs, Resource Groups Tagging API, S3).
 
 ```bash
 # Start services
